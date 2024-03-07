@@ -71,7 +71,7 @@
         (pretty-print
          `(define-library ,libpath
             (namespace ,ns)
-            (import (scheme base))
+            (import (gambit))
             ,@(if (not (eq? (car libpath) 'gerbil))
                 '((import (gerbil runtime)))
                 '())
@@ -119,7 +119,7 @@
       (let (sld-path (path-expand (string-append (symbol->string (last library)) ".sld")
                                   (path-expand (string-join (map symbol->string library) "/") output-path)))
         (when (file-exists? sld-path)
-          (displayln "...compile " sld-path)
+          (displayln "... compile " sld-path)
           (let (flags (hash-ref compilation-flags library []))
             (invoke gsc [search-path flags ...
                                      "-e" "(include \"~~lib/_gambit#.scm\")"
