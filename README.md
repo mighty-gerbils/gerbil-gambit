@@ -3,13 +3,16 @@
 This repo provides support for using Gerbil runtime modules as gambit modules,
 so that they can be integrated in pure gambit programs.
 
-To build:
+## Build and Usage
+
+First, you need to [install Gerbil](https://cons.io/guide/) in your system.
+
+Then just run the `build.ss` script:
 ```
-./build.sh
+./build.ss
 ```
 
-This will checkout and build Gerbil into `gerbil-home`, and create the
-necessary gambit module structure in `modules`.
+This will build the necessary gambit module structure in `modules`.
 
 To use, just pass `-:search=path/to/gerbil-gambit/modules` to gsi/gsc.
 
@@ -18,9 +21,12 @@ To use, just pass `-:search=path/to/gerbil-gambit/modules` to gsi/gsc.
   but we'll get to it eventually.
 - stdlib external foreign deps don't work yet; that should be easy to fix
   by fishing the necessary cc and ld options from the stdlib build-spec.
-- MacOS build might be a bit of a problem with the dependencies from homebrew;
-  we normally build Gerbil for the Mac with homebrew and a Mac expert user
-  should help with this.
+
+
+**Note** I have only tested this on Linux. MacOS build might be a bit of a
+problem with the foreign external dependencies; we normally build
+Gerbil for the Mac with homebrew and a Mac expert user should help
+with this.
 
 ## Demo
 

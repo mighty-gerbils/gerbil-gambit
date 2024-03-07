@@ -5,7 +5,8 @@
 
 (def static-dir (path-expand "lib/static" (gerbil-home)))
 
-(def (main output-path)
+(def (main (output-path (path-expand "modules" (current-directory))))
+  (create-directory* output-path)
   (for (f (directory-files static-dir))
     (when (or (string-prefix? "gerbil__runtime" f)
               (string-prefix? "std__")))
