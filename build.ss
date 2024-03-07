@@ -12,6 +12,10 @@
 (def static-dir (path-expand "lib/static" (gerbil-home)))
 (def libraries (make-hash-table))
 (def references (make-hash-table))
+(def only-dep-references
+  (hash
+   ((std actor-v18 message) #t)
+   ((std net websocket interface) #t)))
 
 (def compilation-flags
   (hash
@@ -24,7 +28,7 @@
     ["-cc-options" "-Wno-deprecated-declarations -Wno-implicit-function-declaration"
      "-ld-options" "-lcrypto"])
    ((std db _sqlite)
-    ["-ld-options" "-lsqlite3 -m" ])))
+    ["-ld-options" "-lsqlite3 -lm" ])))
 
 (def (main (output-path (path-expand "modules" (current-directory)))
            (gsc "gsc"))
@@ -35,17 +39,22 @@
                (not (string-contains f "$")))
       (generate-module f output-path)))
   ;; generate empty stubs for missing references
-  (for (ref (hash-keys references))
-    (let (libpath (path-expand (string-join (map symbol->string ref) "/") output-path))
-      (unless (file-exists? libpath)
-        (displayln "... fixup " ref)
-        (let (sld-file (string-append libpath ".sld"))
-          (create-directory* (path-directory sld-file))
-          (call-with-output-file sld-file
-            (lambda (output-sld)
-              (display `(define-library ,ref) output-sld)))))))
+  (generate-stubs! output-path)
   ;; compile the modules
   (compile-libraries! output-path gsc))
+
+(def (generate-stubs! output-path)
+  (for (ref (hash-keys references))
+    (let* ((libpath (path-expand (string-join (map symbol->string ref) "/") output-path))
+           (sld-file (string-append libpath ".sld"))
+           (libpath-sld-file (path-expand (string-append (symbol->string (last ref)) ".sld") libpath)))
+      (unless (or (file-exists? sld-file)
+                  (file-exists? libpath-sld-file))
+        (displayln "... fixup " ref)
+        (create-directory* (path-directory sld-file))
+        (call-with-output-file sld-file
+          (lambda (output-sld)
+            (display `(define-library ,ref) output-sld)))))))
 
 (def (generate-module f output-path)
   (let* ((modf    (path-strip-extension f))
@@ -60,9 +69,20 @@
                    ((module-context-ns ctx) => (cut string-append <> "#"))
                    (else "")))
          (libin   (module-runtime-imports ctx))
+         (libin-filtered
+          (map (lambda (dep)
+                 (match dep
+                   (['std 'srfi . _] ['only dep])
+                   (else
+                    (if (hash-get only-dep-references dep)
+                      ['only dep]
+                      dep))))
+               libin))
          (libout  (module-runtime-exports ctx))
          (libname (last modpath))
-         (lib.sld (path-expand (string-append libname ".sld") moddir)))
+         (libid   (string->symbol modname))
+         (lib.sld (path-expand (string-append libname ".sld") moddir))
+         (lib.scm (path-expand (string-append libname ".scm") moddir)))
     (displayln "... generate " libpath)
     (create-directory* moddir)
     (copy-file (path-expand f static-dir) (path-expand f moddir))
@@ -73,12 +93,21 @@
             (namespace ,ns)
             (import (gambit))
             ,@(if (not (eq? (car libpath) 'gerbil))
-                '((import (gerbil runtime)))
+                '((import (only (gerbil runtime))))
                 '())
-            (import ,@libin)
+            (import ,@libin-filtered)
             (export ,@libout)
-            (include ,f))
+            (include ,lib.scm))
          output-sld)))
+    (call-with-output-file lib.scm
+      (lambda (output-scm)
+        (write `(##supply-module ,libid) output-scm)
+        (newline output-scm)
+        (for (dep libin)
+          (write `(##demand-module ,(string->symbol (string-join (map symbol->string dep) "/"))) output-scm)
+          (newline output-scm))
+        (write `(##include ,f) output-scm)
+        (newline output-scm)))
     ;; track the module and it's deps
     (hash-put! libraries libpath libin)
     ;; track deps for the "empty file is not generated" issue

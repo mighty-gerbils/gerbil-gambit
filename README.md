@@ -6,13 +6,14 @@ so that they can be integrated in pure gambit programs.
 ## Build and Usage
 
 First, you need to [install Gerbil](https://cons.io/guide/) in your system.
+Please use master, after some required [fixes](https://github.com/mighty-gerbils/gerbil/pull/1153). Your Gambit should also be master, as Marc a blocking issue with the [module cache](https://github.com/gambit/gambit/commit/60ad373b8cfe1338ab8fb3e00d19100c8d76ee41).
 
 Then just run the `build.ss` script:
 ```
 ./build.ss
 ```
 
-This will build the necessary gambit module structure in `modules`.
+This will generate and compile the gerbil and std module structure in `modules`.
 
 To use, just pass `-:search=path/to/gerbil-gambit/modules` to gsi/gsc.
 
@@ -46,8 +47,10 @@ $ cat demo.scm
     ((hello) (display "hello, ") (display (getenv "USER")) (newline))
     ((hello) (display "goodbye, ") (display (getenv "USER")) (newline))))
 
-$ gsi -:search=$PWD/modules demo.scm hello
+$ gsi -:search=./modules demo.scm
+
+$ gsi -:search=./modules demo.scm hello
 hello, vyzo
-$ gsi -:search=$PWD/modules demo.scm goodbye
+$ gsi -:search=./modules demo.scm goodbye
 goodbye, vyzo
 ```
