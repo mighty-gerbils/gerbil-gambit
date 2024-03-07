@@ -17,16 +17,18 @@ This will build the necessary gambit module structure in `modules`.
 To use, just pass `-:search=path/to/gerbil-gambit/modules` to gsi/gsc.
 
 ## Limitations
+
 - only the runtime code is present, no macros; that's hard to fix,
   but we'll get to it eventually.
-- stdlib external foreign deps don't work yet; that should be easy to fix
-  by fishing the necessary cc and ld options from the stdlib build-spec.
+- the built modules do not include the expander or compiler; things that
+  depend on them (macros or tools mostly) just won't work.
+- stdlib external foreign deps don't work yet; that should be straightforward
+  to fix by fishing the necessary cc and ld options from the stdlib build-spec
+  and putting them inside the sld.
+  **Note** this currently cripples important libraries due the openssl/3
+  dependency.
 
-
-**Note** I have only tested this on Linux. MacOS build might be a bit of a
-problem with the foreign external dependencies; we normally build
-Gerbil for the Mac with homebrew and a Mac expert user should help
-with this.
+**Note** I have only tested this on Linux; your mileage may vary in other systems.
 
 ## Demo
 
@@ -49,8 +51,8 @@ $ cat demo.scm
     ((hello) (display "hello, ") (display (getenv "USER")) (newline))
     ((hello) (display "goodbye, ") (display (getenv "USER")) (newline))))
 
-$ ./demo.scm hello
+$ gsi -:search=$PWD/modules demo.scm hello
 hello, vyzo
-$ ./demo.scm goodbye
+$ gsi -:search=$PWD/modules demo.scm goodbye
 goodbye, vyzo
 ```
