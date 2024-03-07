@@ -22,11 +22,6 @@ To use, just pass `-:search=path/to/gerbil-gambit/modules` to gsi/gsc.
   but we'll get to it eventually.
 - the built modules do not include the expander or compiler; things that
   depend on them (macros or tools mostly) just won't work.
-- stdlib external foreign deps don't work yet; that should be straightforward
-  to fix by fishing the necessary cc and ld options from the stdlib build-spec
-  and putting them inside the sld.
-  **Note** this currently cripples important libraries due the openssl/3
-  dependency.
 
 **Note** I have only tested this on Linux; your mileage may vary in other systems.
 

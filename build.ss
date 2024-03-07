@@ -2,15 +2,32 @@
 
 (import :gerbil/expander
         :gerbil/compiler
+        :std/sugar
         :std/iter
         :std/srfi/1
         :std/srfi/13
-        :std/pregexp)
+        :std/pregexp
+        :std/misc/process)
 
 (def static-dir (path-expand "lib/static" (gerbil-home)))
+(def libraries (make-hash-table))
 (def references (make-hash-table))
 
-(def (main (output-path (path-expand "modules" (current-directory))))
+(def compilation-flags
+  (hash
+   ((std text _zlib) ["-ld-options" "-lz"])
+   ((std net libssl)
+    (cond-expand
+      (darwin ["-ld-options" "-lssl -lcrypto -lgambit"])
+      (else ["-ld-options" "-lssl"])))
+   ((std crypto libcrypto)
+    ["-cc-options" "-Wno-deprecated-declarations -Wno-implicit-function-declaration"
+     "-ld-options" "-lcrypto"])
+   ((std db _sqlite)
+    ["-ld-options" "-lsqlite3 -m" ])))
+
+(def (main (output-path (path-expand "modules" (current-directory)))
+           (gsc "gsc"))
   (create-directory* output-path)
   (for (f (directory-files static-dir))
     (when (and (or (string-prefix? "gerbil__runtime" f)
@@ -26,7 +43,9 @@
           (create-directory* (path-directory sld-file))
           (call-with-output-file sld-file
             (lambda (output-sld)
-              (display `(define-library ,ref) output-sld))))))))
+              (display `(define-library ,ref) output-sld)))))))
+  ;; compile the modules
+  (compile-libraries! output-path gsc))
 
 (def (generate-module f output-path)
   (let* ((modf    (path-strip-extension f))
@@ -52,6 +71,7 @@
         (pretty-print
          `(define-library ,libpath
             (namespace ,ns)
+            (import (scheme base))
             ,@(if (not (eq? (car libpath) 'gerbil))
                 '((import (gerbil runtime)))
                 '())
@@ -59,6 +79,8 @@
             (export ,@libout)
             (include ,f))
          output-sld)))
+    ;; track the module and it's deps
+    (hash-put! libraries libpath libin)
     ;; track deps for the "empty file is not generated" issue
     (for-each (cut hash-put! references <> #t) libin)))
 
@@ -88,3 +110,23 @@
                     (module-export-name xport)
                     `(rename ,(module-export-key xport) ,(module-export-name xport)))))))
     (module-context-export ctx))))
+
+(def (compile-libraries! output-path gsc)
+  (def search-path (string-append "-:search=" output-path))
+  (def compiled (make-hash-table))
+  (def (compile! library)
+    (unless (hash-get compiled library)
+      (let (sld-path (path-expand (string-append (symbol->string (last library)) ".sld")
+                                  (path-expand (string-join (map symbol->string library) "/") output-path)))
+        (when (file-exists? sld-path)
+          (displayln "...compile " sld-path)
+          (let (flags (hash-ref compilation-flags library []))
+            (invoke gsc [search-path flags ...
+                                     "-e" "(include \"~~lib/_gambit#.scm\")"
+                                     sld-path]))
+          (hash-put! compiled library #t)))))
+  (for ((values library deps) (in-hash libraries))
+    (displayln "... compiling " library)
+    (for (dep deps)
+      (compile! dep))
+    (compile! library)))
