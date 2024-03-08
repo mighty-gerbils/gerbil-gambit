@@ -1,7 +1,6 @@
 #!/usr/bin/env gxi
 
 (import :gerbil/expander
-        :gerbil/compiler
         :std/sugar
         :std/iter
         :std/srfi/1
@@ -93,16 +92,39 @@
             (namespace ,ns)
             (import (gambit))
             ,@(if (not (eq? (car libpath) 'gerbil))
-                '((import (only (gerbil runtime))))
+                ;; get the properly (un)namespaced runtime symbols
+                '((import (gerbil runtime util)
+                          (gerbil runtime table)
+                          (gerbil runtime control)
+                          (gerbil runtime system)
+                          (gerbil runtime c3)
+                          (gerbil runtime mop)
+                          (gerbil runtime error)
+                          (gerbil runtime interface)
+                          (gerbil runtime hash)
+                          (gerbil runtime thread)
+                          (gerbil runtime syntax)
+                          (gerbil runtime eval)
+                          (gerbil runtime repl)
+                          (gerbil runtime loader)
+                          (gerbil runtime init)
+                          (only (gerbil runtime))))
                 '())
             (import ,@libin-filtered)
             (export ,@libout)
-            (include ,lib.scm))
+            (include ,(path-strip-directory lib.scm)))
          output-sld)))
     (call-with-output-file lib.scm
       (lambda (output-scm)
+        (write `(display '(load ,libid)) output-scm)
+        (write '(newline) output-scm)
+        (newline output-scm)
+
         (write `(##supply-module ,libid) output-scm)
         (newline output-scm)
+        (unless (eq? 'gerbil (car libpath))
+          (write '(##demand-module gerbil/runtime) output-scm)
+          (newline output-scm))
         (for (dep libin)
           (write `(##demand-module ,(string->symbol (string-join (map symbol->string dep) "/"))) output-scm)
           (newline output-scm))
@@ -114,16 +136,30 @@
     (for-each (cut hash-put! references <> #t) libin)))
 
 (def (module-runtime-imports ctx)
-  (map (lambda (dep)
-         (map string->symbol
-              (string-split
-               (symbol->string
-                (expander-context-id dep))
-               #\/)))
-       (filter
-        (lambda (dep)
-          (not (string-prefix? "gerbil/core" (symbol->string (expander-context-id dep)))))
-        (gxc#find-runtime-module-deps ctx))))
+  (filter-map
+   (lambda (dep-id)
+     (let (dep-str (symbol->string dep-id))
+       (and (not (string-prefix? "gerbil/core" dep-str))
+            (map string->symbol (string-split dep-str  #\/)))))
+   (module-runtime-import-ids ctx)))
+
+(def (module-runtime-import-ids ctx)
+  (reverse
+   (map expander-context-id
+        (delete-duplicates!
+         (filter-map
+          (lambda (in)
+            (let recur ((in in))
+              (cond
+               ((module-context? in) in)
+               ((module-import? in)
+                (and (fxzero? (module-import-phi in))
+                     (recur (module-export-context (module-import-source in)))))
+               ((import-set? in)
+                (and (fxzero? (import-set-phi in))
+                     (import-set-source in)))
+               (else #f))))
+          (module-context-import ctx))))))
 
 (def (module-runtime-exports ctx)
   (delete-duplicates!
@@ -132,8 +168,9 @@
       (and (module-export? xport)
            (fxzero? (module-export-phi xport))
            (let (b (core-resolve-module-export xport))
-             (and (not (import-binding? xport))
-                  (not (extern-binding? xport))
+             (and (not (import-binding? b)) ; re-exports broken in .sld due to namespacing
+                  (not (extern-binding? b)) ; ditto for externs
+                  (not (expander-binding? b)) ; no macros
                   (if (eq? (module-export-key xport)
                            (module-export-name xport))
                     (module-export-name xport)
@@ -150,7 +187,8 @@
         (when (file-exists? sld-path)
           (displayln "... compile " sld-path)
           (let (flags (hash-ref compilation-flags library []))
-            (invoke gsc [search-path flags ...
+            (invoke gsc [search-path ;; "-debug-source" "-track-scheme"
+                                     flags ...
                                      "-e" "(include \"~~lib/_gambit#.scm\")"
                                      sld-path]))
           (hash-put! compiled library #t)))))
