@@ -27,9 +27,6 @@ There are a few limitations:
   but we'll get to it eventually.
 - the built modules do not include the expander or compiler; things that
   depend on them (macros or tools mostly) just won't work.
-- reexports are not emitted for wrapper modules. The problem here is that
-  the .sld model with the namespace declaration just breaks reexport namespacing
-  completely. So you have to import deep and can't rely on package facades.
 
 **Note** I have only tested this on Linux; your mileage may vary in other systems.
 
