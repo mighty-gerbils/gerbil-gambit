@@ -6,8 +6,8 @@
   (call-with-getopt demo-main args
                     program: "demo"
                     help: "a small demo script"
-                    (command "hello" help: "say hello")
-                    (command "goodbye" help: "say goodbye")))
+                    (command 'hello help: "say hello")
+                    (command 'goodbye help: "say goodbye")))
 
 (define (demo-main cmd opt)
   (case cmd

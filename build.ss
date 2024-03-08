@@ -32,6 +32,9 @@
 (def (main (output-path (path-expand "modules" (current-directory)))
            (gsc "gsc"))
   (create-directory* output-path)
+  ;; first we need this
+  (generate-gambit-macros-module! output-path)
+  ;; and then we can generate the modules
   (for (f (directory-files static-dir))
     (when (and (or (string-prefix? "gerbil__runtime" f)
                    (string-prefix? "std__" f))
@@ -41,6 +44,36 @@
   (generate-stubs! output-path)
   ;; compile the modules
   (compile-libraries! output-path gsc))
+
+(def (generate-gambit-macros-module! output-path)
+  (displayln "... generate (gambit-macros)")
+  (def define-macro-rx (pregexp "[(]define-macro [(](macro-[A-Za-z0-9!?-]+)"))
+  (def use-macro-rx (pregexp "[(](macro-[A-Za-z0-9!?-]+)"))
+  (def referenced-macros (make-hash-table-eq))
+  (for (f (directory-files static-dir))
+    (call-with-input-file (path-expand f static-dir)
+      (lambda (input)
+        (def local-definitions (make-hash-table-eq))
+        (def local-references (make-hash-table-eq))
+        (for (line (in-input-lines input))
+          (cond
+           ((pregexp-match define-macro-rx line)
+            => (lambda (m)
+                 (hash-put! local-definitions (string->symbol (cadr m)) #t)))
+           ((pregexp-match use-macro-rx line)
+            => (lambda (m)
+                 (hash-put! local-references (string->symbol (cadr m)) #t)))))
+        (for (ref (hash-keys local-references))
+          (unless (hash-get local-definitions ref)
+            (hash-put! referenced-macros ref #t))))))
+  (let (gambit-macros.sld (path-expand "gambit-macros.sld" output-path))
+    (call-with-output-file gambit-macros.sld
+      (lambda (output-file)
+        (pretty-print
+         `(define-library (gambit-macros)
+            (namespace "")
+            (export ,@(hash-keys referenced-macros)))
+         output-file)))))
 
 (def (generate-stubs! output-path)
   (for (ref (hash-keys references))
@@ -91,6 +124,7 @@
          `(define-library ,libpath
             (namespace ,ns)
             (import (gambit))
+            (import (gambit-macros))
             ,@(if (not (eq? (car libpath) 'gerbil))
                 ;; get the properly (un)namespaced runtime symbols
                 '((import (gerbil runtime util)
@@ -116,9 +150,10 @@
          output-sld)))
     (call-with-output-file lib.scm
       (lambda (output-scm)
-        (write `(display '(load ,libid)) output-scm)
-        (write '(newline) output-scm)
-        (newline output-scm)
+        ;; this is useful for segfault debugging
+        ;; (write `(display '(load ,libid)) output-scm)
+        ;; (write '(newline) output-scm)
+        ;; (newline output-scm)
 
         (write `(##supply-module ,libid) output-scm)
         (newline output-scm)

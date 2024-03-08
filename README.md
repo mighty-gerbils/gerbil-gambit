@@ -19,10 +19,14 @@ To use, just pass `-:search=path/to/gerbil-gambit/modules` to gsi/gsc.
 
 ## Limitations
 
+There are a few limitations:
 - only the runtime code is present, no macros; that's hard to fix,
   but we'll get to it eventually.
 - the built modules do not include the expander or compiler; things that
   depend on them (macros or tools mostly) just won't work.
+- reexports are not emitted for wrapper modules. The problem here is that
+  the .sld model with the namespace declaration just breaks reexport namespacing
+  completely. So you have to import deep and can't rely on package facades.
 
 **Note** I have only tested this on Linux; your mileage may vary in other systems.
 
@@ -48,6 +52,16 @@ $ cat demo.scm
     ((hello) (display "goodbye, ") (display (getenv "USER")) (newline))))
 
 $ gsi -:search=./modules demo.scm
+Error: Missing command
+
+demo: a small demo script
+
+Usage: demo  <command> command-arg ...
+
+Commands:
+ hello                            say hello
+ goodbye                          say goodbye
+ help                             display help; help <command> for command help
 
 $ gsi -:search=./modules demo.scm hello
 hello, vyzo
