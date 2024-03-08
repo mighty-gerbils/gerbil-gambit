@@ -127,22 +127,7 @@
             (import (gambit-macros))
             ,@(if (not (eq? (car libpath) 'gerbil))
                 ;; get the properly (un)namespaced runtime symbols
-                '((import (gerbil runtime util)
-                          (gerbil runtime table)
-                          (gerbil runtime control)
-                          (gerbil runtime system)
-                          (gerbil runtime c3)
-                          (gerbil runtime mop)
-                          (gerbil runtime error)
-                          (gerbil runtime interface)
-                          (gerbil runtime hash)
-                          (gerbil runtime thread)
-                          (gerbil runtime syntax)
-                          (gerbil runtime eval)
-                          (gerbil runtime repl)
-                          (gerbil runtime loader)
-                          (gerbil runtime init)
-                          (only (gerbil runtime))))
+                '((import (gerbil runtime)))
                 '())
             (import ,@libin-filtered)
             (export ,@libout)
@@ -203,8 +188,7 @@
       (and (module-export? xport)
            (fxzero? (module-export-phi xport))
            (let (b (core-resolve-module-export xport))
-             (and (not (import-binding? b)) ; re-exports broken in .sld due to namespacing
-                  (not (extern-binding? b)) ; ditto for externs
+             (and (not (extern-binding? b)) ; no import, so they will get name clobbered
                   (not (expander-binding? b)) ; no macros
                   (if (eq? (module-export-key xport)
                            (module-export-name xport))
