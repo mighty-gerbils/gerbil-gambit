@@ -49,7 +49,7 @@ $ cat demo.scm
 (define (demo-main cmd opt)
   (case cmd
     ((hello) (display "hello, ") (display (getenv "USER")) (newline))
-    ((hello) (display "goodbye, ") (display (getenv "USER")) (newline))))
+    ((goodbye) (display "goodbye, ") (display (getenv "USER")) (newline))))
 
 $ gsi -:search=./modules demo.scm
 Error: Missing command
