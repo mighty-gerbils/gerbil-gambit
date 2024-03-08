@@ -14,8 +14,11 @@ Then just run the `build.ss` script:
 ```
 
 This will generate and compile the gerbil and std module structure in `modules`.
+Next, you can install to `~/.gambit_userlib` by running the install script:
+```
+./install.sh
+```
 
-To use, just pass `-:search=path/to/gerbil-gambit/modules` to gsi/gsc.
 
 ## Limitations
 
@@ -51,7 +54,7 @@ $ cat demo.scm
     ((hello) (display "hello, ") (display (getenv "USER")) (newline))
     ((goodbye) (display "goodbye, ") (display (getenv "USER")) (newline))))
 
-$ gsi -:search=./modules demo.scm
+$ gsi demo.scm
 Error: Missing command
 
 demo: a small demo script
@@ -63,8 +66,8 @@ Commands:
  goodbye                          say goodbye
  help                             display help; help <command> for command help
 
-$ gsi -:search=./modules demo.scm hello
+$ gsi demo.scm hello
 hello, vyzo
-$ gsi -:search=./modules demo.scm goodbye
+$ gsi demo.scm goodbye
 goodbye, vyzo
 ```
